@@ -66,10 +66,10 @@ function simulateNeotrons(params:IParams): IResult {
   const result: IResult = {
     meta: {
       params: {
-        steps: params.steps,
-        keepProb: 0.4,
-        leaveProb: 0.2,
-        fusionPower3Prob: 0.3,
+        steps,
+        keepProb,
+        leaveProb,
+        fusionPower3Prob,
       },
       timestamp: new Date().toISOString(),
       version: "1.0.0",

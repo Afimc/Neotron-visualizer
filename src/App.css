@@ -1,0 +1,10 @@
+.App{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+}
+button{
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
