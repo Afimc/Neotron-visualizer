@@ -11,7 +11,7 @@ export const simStore = create<ISimStore>()((set) => ({
     },
 
     setResult: (r: IResult) => set({ result: r }),
-    setInputParams: (partial: Partial<IParams>) =>set((s) => ({ 
-        inputParams: { ...s.inputParams, ...partial } })),
+    setInputParams: (partial: Partial<IParams>) =>
+    set((s) => ({ inputParams: { ...s.inputParams, ...partial } })),
 }));
 

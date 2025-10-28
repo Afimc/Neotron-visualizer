@@ -41,5 +41,5 @@ export interface ISimStore {
     result: IResult | null;
     inputParams: IParams;
     setResult: (r: IResult) => void;
-    setInputParams: (p: IParams) => void;
+    setInputParams: (p: Partial<IParams>) => void;
 }

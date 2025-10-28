@@ -1,31 +1,172 @@
-import { useEffect, useRef } from "react";
-import { Application, Graphics, Container } from "pixi.js";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Application, Graphics, Container, Text } from "pixi.js";
 import { simStore } from "../../core/store/simStore";
 
-function layoutGrid(n: number, w: number, h: number) {
-  const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
-  const rows = Math.ceil(n / cols);
-  const cell = Math.min(w / cols, h / rows);
-  const r = Math.max(2, Math.min(12, cell * 0.35));
-  const pos: { x: number; y: number; r: number }[] = [];
+interface NeutronParticle {
+  id: string;
+  x: number;
+  y: number;
+  targetX: number;
+  targetY: number;
+  color: number;
+  radius: number;
+  isMoving: boolean;
+  action?: "keep" | "fusion" | "leave";
+  fusionPartner?: string;
+}
+
+function layoutNeutronsInColumn(n: number, h: number, stepX: number) {
+  const usableHeight = h - 120;
+  const spacing = Math.min(40, usableHeight / Math.max(1, n));
+  const startY = 80 + (usableHeight - (n - 1) * spacing) / 2;
+
+  const particles: NeutronParticle[] = [];
   for (let i = 0; i < n; i++) {
-    const c = i % cols;
-    const rIdx = Math.floor(i / cols);
-    pos.push({ x: (c + 0.5) * cell, y: (rIdx + 0.5) * cell, r });
+    particles.push({
+      id: `${stepX}-${i}`,
+      x: stepX,
+      y: startY + i * spacing,
+      targetX: stepX,
+      targetY: startY + i * spacing,
+      color: 0x3b82f6,
+      radius: Math.max(4, Math.min(12, spacing * 0.3)),
+      isMoving: false,
+    });
   }
-  return { pos, contentW: cols * cell, contentH: rows * cell };
+  return particles;
+}
+
+function layoutNeutronsWithFusions(step: any, h: number, centerX: number) {
+  const usableHeight = h - 120;
+  const particles: NeutronParticle[] = [];
+  
+  const totalNeutrons = step.end;
+  const maxNeutronsPerColumn = Math.floor(usableHeight / 25);
+  const columns = Math.max(1, Math.ceil(totalNeutrons / maxNeutronsPerColumn));
+  const neutronsPerColumn = Math.ceil(totalNeutrons / columns);
+  const spacing = Math.min(40, usableHeight / neutronsPerColumn);
+  const columnWidth = 30;
+  
+  let neutronIndex = 0;
+  
+  for (let i = 0; i < step.kept; i++) {
+    const col = Math.floor(neutronIndex / neutronsPerColumn);
+    const row = neutronIndex % neutronsPerColumn;
+    const x = centerX + (col - (columns - 1) / 2) * columnWidth;
+    const y = 80 + row * spacing;
+    
+    particles.push({
+      id: `${centerX}-kept-${i}`,
+      x: x,
+      y: y,
+      targetX: x,
+      targetY: y,
+      color: 0x3b82f6,
+      radius: Math.max(4, Math.min(8, spacing * 0.3)),
+      isMoving: false,
+    });
+    neutronIndex++;
+  }
+  
+  step.fusions.forEach((fusionPower: number, fusionIndex: number) => {
+    for (let i = 0; i < fusionPower; i++) {
+      const col = Math.floor(neutronIndex / neutronsPerColumn);
+      const row = neutronIndex % neutronsPerColumn;
+      const x = centerX + (col - (columns - 1) / 2) * columnWidth;
+      const y = 80 + row * spacing;
+      
+      particles.push({
+        id: `${centerX}-fusion-${fusionIndex}-${i}`,
+        x: x,
+        y: y,
+        targetX: x,
+        targetY: y,
+        color: 0x10b981,
+        radius: Math.max(4, Math.min(6, spacing * 0.3)),
+        isMoving: false,
+        action: 'fusion',
+        fusionPartner: `fusion-${fusionIndex}`
+      });
+      neutronIndex++;
+    }
+  });
+  
+  return particles;
 }
 
 export default function NeotronField() {
-  console.log("[NeotronField] render"); // component render
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<Application | null>(null);
-  const drawRef = useRef<((n: number) => void) | null>(null);
+  const drawRef = useRef<((stepIndex: number, isAnimating: boolean) => void) | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const particlesRef = useRef<NeutronParticle[]>([]);
+  const animationFrameRef = useRef<number | null>(null);
 
-  const result = simStore((s:any) => s.result);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [animationSpeed, setAnimationSpeed] = useState(1000);
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  const result = simStore((s: any) => s.result);
+
+  const startAnimation = useCallback(() => {
+    if (!result?.steps?.length) return;
+
+    setIsPlaying(true);
+    intervalRef.current = setInterval(() => {
+      setCurrentStep((prev) => {
+        const nextStep = prev + 1;
+        if (nextStep > result.steps.length) {
+          setIsPlaying(false);
+          return prev;
+        }
+        return nextStep;
+      });
+    }, animationSpeed);
+  }, [result, animationSpeed]);
+
+  const pauseAnimation = useCallback(() => {
+    setIsPlaying(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  const resetAnimation = useCallback(() => {
+    pauseAnimation();
+    setCurrentStep(0);
+    setIsAnimating(false);
+  }, [pauseAnimation]);
+
+  const stepForward = useCallback(() => {
+    if (!result?.steps?.length) return;
+    if (isPlaying) {
+      pauseAnimation();
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, result.steps.length));
+  }, [result, isPlaying, pauseAnimation]);
+
+  const stepBackward = useCallback(() => {
+    if (isPlaying) {
+      pauseAnimation();
+    }
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
+    setIsAnimating(false);
+  }, [isPlaying, pauseAnimation]);
 
   useEffect(() => {
-    console.log("[NeotronField] mount effect start");
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let cleanup = () => {};
 
     (async () => {
@@ -34,83 +175,501 @@ export default function NeotronField() {
         return;
       }
 
-      console.log("[NeotronField] creating Pixi Application…");
+      wrapRef.current.innerHTML = '';
+
       const app = new Application();
       await app.init({
         backgroundAlpha: 0,
         antialias: true,
-        resizeTo: wrapRef.current, // keep canvas sized to container
+        resizeTo: wrapRef.current,
+        width: wrapRef.current.clientWidth,
+        height: wrapRef.current.clientHeight,
       });
       appRef.current = app;
+      
+      app.canvas.style.display = 'block';
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+      
       wrapRef.current.appendChild(app.canvas);
-      console.log("[NeotronField] Pixi initialized, canvas appended");
 
       const root = new Container();
       app.stage.addChild(root);
 
-      const draw = (n: number) => {
-        console.log("[NeotronField] draw() called with n =", n);
+      const draw = (stepIndex: number, animating: boolean) => {
         root.removeChildren();
 
         const w = app.renderer.width;
         const h = app.renderer.height;
-        const { pos, contentW, contentH } = layoutGrid(n, w, h);
-        const ox = (w - contentW) / 2;
-        const oy = (h - contentH) / 2;
 
-        for (const p of pos) {
+        if (!result?.steps?.length) {
+          const noDataText = new Text({
+            text: "No simulation data available\nRun a simulation to see the animation",
+            style: {
+              fontSize: 18,
+              fill: 0x666666,
+              fontFamily: "Arial, sans-serif",
+              align: 'center'
+            },
+          });
+          noDataText.x = w / 2 - noDataText.width / 2;
+          noDataText.y = h / 2 - noDataText.height / 2;
+          root.addChild(noDataText);
+          return;
+        }
+
+        const centerX = w / 2;
+        const stepWidth = Math.max(80, Math.min(150, w / (result.steps.length + 3)));
+        
+        const baseTimelineX = centerX - (stepIndex * stepWidth);
+
+        const timelineY = h - 60;
+        for (let i = 0; i <= result.steps.length; i++) {
+          const x = baseTimelineX + (i * stepWidth);
+          
+          if (x > -150 && x < w + 150) {
+            const line = new Graphics();
+            line.moveTo(x, 80);
+            line.lineTo(x, timelineY);
+            line.stroke({ 
+              color: i === stepIndex ? 0xef4444 : 0xe5e7eb, 
+              width: i === stepIndex ? 3 : 1 
+            });
+            root.addChild(line);
+
+            const stepLabel = new Text({
+              text: i === 0 ? "Start" : `Step ${i}`,
+              style: { 
+                fontSize: 12, 
+                fill: i === stepIndex ? 0xef4444 : 0x6b7280,
+                fontWeight: i === stepIndex ? 'bold' : 'normal'
+              },
+            });
+            stepLabel.x = x - stepLabel.width / 2;
+            stepLabel.y = timelineY + 10;
+            root.addChild(stepLabel);
+          }
+        }
+
+        const indicator = new Graphics();
+        indicator.rect(centerX - 2, 75, 4, timelineY - 70);
+        indicator.fill(0xef4444);
+        root.addChild(indicator);
+
+        const infoText = new Text({
+          text: stepIndex === 0 
+            ? "Initial state: 1 neutron ready to start"
+            : `Step ${result.steps[stepIndex - 1].step}: ${result.steps[stepIndex - 1].start} → ${result.steps[stepIndex - 1].end} neutrons (Kept: ${result.steps[stepIndex - 1].kept}, Left: ${result.steps[stepIndex - 1].left}, Fusions: ${result.steps[stepIndex - 1].fusions.length})`,
+          style: {
+            fontSize: 14,
+            fill: 0x333333,
+            fontFamily: "Arial, sans-serif",
+          },
+        });
+        infoText.x = 10;
+        infoText.y = 10;
+        root.addChild(infoText);
+
+        if (stepIndex === 0) {
+          if (!animating) {
+            particlesRef.current = layoutNeutronsInColumn(1, h, centerX);
+          }
+        } else {
+          const step = result.steps[stepIndex - 1];
+
+          if (!animating) {
+            particlesRef.current = layoutNeutronsWithFusions(step, h, centerX);
+          }
+        }
+
+        if (stepIndex > 0 && !animating) {
+          const prevStep = result.steps[stepIndex - 2];
+          if (prevStep) {
+            const prevParticles = layoutNeutronsWithFusions(prevStep, h, centerX - 120);
+            prevParticles.forEach((particle) => {
+              const g = new Graphics();
+              g.circle(particle.x, particle.y, particle.radius * 0.6);
+              g.fill({ color: particle.color, alpha: 0.3 });
+              root.addChild(g);
+            });
+          }
+        }
+
+        particlesRef.current.forEach((particle) => {
           const g = new Graphics();
-          g.circle(p.x + ox, p.y + oy, p.r);
-          g.fill(0x3b82f6);
+          g.circle(particle.x, particle.y, particle.radius);
+          g.fill(particle.color);
+
+          if (particle.isMoving) {
+            const glowG = new Graphics();
+            glowG.circle(particle.x, particle.y, particle.radius + 4);
+            glowG.fill({ color: particle.color, alpha: 0.4 });
+            root.addChild(glowG);
+          }
+
+          if (particle.action === 'fusion') {
+            const fusionRing = new Graphics();
+            fusionRing.circle(particle.x, particle.y, particle.radius + 6);
+            fusionRing.stroke({ color: 0xf59e0b, width: 2, alpha: 0.7 });
+            root.addChild(fusionRing);
+          }
+
           root.addChild(g);
+        });
+
+        if (stepIndex > 0 && animating) {
+          const step = result.steps[stepIndex - 1];
+          
+          step.fusions.forEach((fusionPower: number, fusionIndex: number) => {
+            const fusionParticles = particlesRef.current.filter(p => 
+              p.fusionPartner === `fusion-${fusionIndex}`
+            );
+            
+            if (fusionParticles.length > 0) {
+              const centerY = fusionParticles.reduce((sum, p) => sum + p.y, 0) / fusionParticles.length;
+              const burstX = centerX - 60;
+              
+              const burstG = new Graphics();
+              burstG.star(burstX, centerY, 8, 12, 6);
+              burstG.fill({ color: 0xf59e0b, alpha: 0.9 });
+              root.addChild(burstG);
+              
+              for (let i = 0; i < 5; i++) {
+                const angle = (i * Math.PI * 2) / 5;
+                const sparkX = burstX + Math.cos(angle) * 15;
+                const sparkY = centerY + Math.sin(angle) * 15;
+                const spark = new Graphics();
+                spark.circle(sparkX, sparkY, 2);
+                spark.fill({ color: 0xfbbf24, alpha: 0.8 });
+                root.addChild(spark);
+              }
+            }
+          });
+        }
+
+        const gridSpacing = 60;
+        const gridOffset = (stepIndex * stepWidth) % gridSpacing;
+        
+        for (let x = -gridOffset; x < w + gridSpacing; x += gridSpacing) {
+          const gridLine = new Graphics();
+          gridLine.moveTo(x, 90);
+          gridLine.lineTo(x, timelineY - 10);
+          gridLine.stroke({ color: 0xf0f0f0, width: 1, alpha: 0.3 });
+          root.addChild(gridLine);
         }
       };
 
       drawRef.current = draw;
 
+      const animate = () => {
+        let needsUpdate = false;
+        
+        particlesRef.current.forEach((particle) => {
+          if (particle.isMoving) {
+            const dx = particle.targetX - particle.x;
+            const dy = particle.targetY - particle.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance > 1) {
+              particle.x += dx * 0.08;
+              particle.y += dy * 0.08;
+              needsUpdate = true;
+            } else {
+              particle.x = particle.targetX;
+              particle.y = particle.targetY;
+              particle.isMoving = false;
+            }
+          }
+        });
+
+        if (needsUpdate) {
+          if (drawRef.current) {
+            drawRef.current(currentStep, true);
+          }
+        } else {
+          setIsAnimating(false);
+        }
+
+        animationFrameRef.current = requestAnimationFrame(animate);
+      };
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+
+      draw(0, false);
 
       const onResize = () => {
-        console.log("[NeotronField] resize");
-        drawRef.current?.(100);
+        if (result?.steps?.length && drawRef.current) {
+          drawRef.current(currentStep, false);
+        }
       };
       app.renderer.on("resize", onResize);
 
       cleanup = () => {
-        console.log("[NeotronField] cleanup");
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
         app.renderer.off("resize", onResize);
-        app.destroy(true);
+        app.destroy(true, { children: true, texture: true });
         appRef.current = null;
         drawRef.current = null;
+        if (wrapRef.current) {
+          wrapRef.current.innerHTML = '';
+        }
       };
     })();
 
     return () => cleanup();
-  }, []);
-
-
-  useEffect(() => {
-    console.log("[NeotronField] result effect fired:", result);
-    if (!result || !result.steps?.length) return;
-
-    const n = Math.max(...result.steps.map((s:any) => s.end)); 
-    console.log("[NeotronField] computed n from result =", n);
-
-    if (drawRef.current) {
-      drawRef.current(n);
-    } else {
-      console.warn("[NeotronField] drawRef not ready yet");
-    }
   }, [result]);
 
+  useEffect(() => {
+    if (!result?.steps?.length || !drawRef.current || !appRef.current) return;
+
+    drawRef.current(currentStep, isAnimating);
+
+    const w = appRef.current.renderer.width;
+    const h = appRef.current.renderer.height;
+    const centerX = w / 2;
+
+    if (currentStep === 0) {
+      setIsAnimating(false);
+      particlesRef.current = layoutNeutronsInColumn(1, h, centerX);
+      return;
+    }
+
+    if (currentStep > 0 && currentStep <= result.steps.length) {
+      const step = result.steps[currentStep - 1];
+
+      if (isPlaying) {
+        setIsAnimating(true);
+
+        const targetParticles = layoutNeutronsWithFusions(step, h, centerX);
+
+        const newParticles: NeutronParticle[] = [];
+        let keptIndex = 0;
+
+        for (let i = 0; i < step.kept && i < particlesRef.current.length; i++) {
+          const particle = { ...particlesRef.current[i] };
+          
+          const keptTargets = targetParticles.filter(p => p.color === 0x3b82f6);
+          if (keptIndex < keptTargets.length) {
+            particle.targetX = keptTargets[keptIndex].x;
+            particle.targetY = keptTargets[keptIndex].y;
+            particle.isMoving = true;
+            particle.color = 0x3b82f6;
+            
+            particle.x = centerX - 120;
+            
+            newParticles.push(particle);
+            keptIndex++;
+          }
+        }
+
+        const fusionTargets = targetParticles.filter(p => p.color === 0x10b981);
+        fusionTargets.forEach(target => {
+          const newNeutron: NeutronParticle = {
+            ...target,
+            isMoving: true,
+            x: centerX - 60,
+            y: target.y,
+            color: 0x10b981,
+          };
+          newParticles.push(newNeutron);
+        });
+
+        particlesRef.current = newParticles;
+      } else {
+        setIsAnimating(false);
+        const targetParticles = layoutNeutronsWithFusions(step, h, centerX);
+        particlesRef.current = targetParticles;
+        drawRef.current(currentStep, false);
+        return;
+      }
+    }
+  }, [currentStep, result, isPlaying]);
+
   return (
-    <div
-      ref={wrapRef}
-    //   style={{
-    //     width: "100%",
-    //     height: "60vh",
-    //     background: "rgba(0,0,0,0.05)",
-    //     borderTop: "1px solid rgba(0,0,0,0.1)",
-    //   }}
-    />
+    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          padding: "10px",
+          borderBottom: "1px solid #e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap",
+          flexShrink: 0,
+        }}
+      >
+        <button
+          onClick={isPlaying ? pauseAnimation : startAnimation}
+          disabled={!result?.steps?.length}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: isPlaying ? "#ef4444" : "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            opacity: !result?.steps?.length ? 0.5 : 1,
+          }}
+        >
+          {isPlaying ? "Pause" : "Play"}
+        </button>
+
+        <button
+          onClick={pauseAnimation}
+          disabled={!result?.steps?.length || !isPlaying}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#f59e0b",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            opacity: (!result?.steps?.length || !isPlaying) ? 0.5 : 1,
+          }}
+        >
+          Stop
+        </button>
+
+        <button
+          onClick={resetAnimation}
+          disabled={!result?.steps?.length}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#6b7280",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Reset
+        </button>
+
+        <button
+          onClick={stepBackward}
+          disabled={!result?.steps?.length || currentStep === 0 || isAnimating}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            opacity: (!result?.steps?.length || currentStep === 0 || isAnimating) ? 0.5 : 1,
+          }}
+        >
+          ← Step
+        </button>
+
+        <button
+          onClick={stepForward}
+          disabled={!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            opacity: (!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating) ? 0.5 : 1,
+          }}
+        >
+          Step →
+        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <label>Speed:</label>
+          <select
+            value={animationSpeed}
+            onChange={(e) => setAnimationSpeed(Number(e.target.value))}
+            style={{
+              padding: "4px 8px",
+              border: "1px solid #d1d5db",
+              borderRadius: "4px",
+            }}
+          >
+            <option value={3000}>Slow (3s)</option>
+            <option value={2000}>Normal (2s)</option>
+            <option value={1000}>Fast (1s)</option>
+            <option value={500}>Very Fast (0.5s)</option>
+          </select>
+        </div>
+
+        {result?.steps?.length && (
+          <div
+            style={{
+              marginLeft: "auto",
+              fontSize: "14px",
+              color: "#6b7280",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span>Step {currentStep} / {result.steps.length}</span>
+            {isPlaying && (
+              <span style={{ color: "#10b981", fontSize: "12px" }}>● Playing</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div
+        ref={wrapRef}
+        style={{
+          width: "100%",
+          flex: 1,
+          background: "rgba(0,0,0,0.02)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      />
+
+      <div
+        style={{
+          padding: "10px",
+          borderTop: "1px solid #e5e7eb",
+          display: "flex",
+          gap: "20px",
+          fontSize: "12px",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <div
+            style={{
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              backgroundColor: "#3b82f6",
+            }}
+          ></div>
+          <span>Kept Neutrons</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <div
+            style={{
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              backgroundColor: "#10b981",
+            }}
+          ></div>
+          <span>Created by Fusion</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <div
+            style={{
+              width: "20px",
+              height: "3px",
+              backgroundColor: "#f59e0b",
+            }}
+          ></div>
+          <span>Fusion Events</span>
+        </div>
+      </div>
+    </div>
   );
 }

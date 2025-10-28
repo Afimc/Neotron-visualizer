@@ -1,9 +1,7 @@
 import type { IParams, IResult, IStepRecord } from "../types/types";
 
-
-function simulateNeotrons(params:IParams): IResult {
+function simulateNeotrons(params: IParams): IResult {
   const { steps, keepProb, leaveProb, fusionPower3Prob } = params;
-  console.log(`Starting simulation with params: steps=${steps}, keepProb=${keepProb}, leaveProb=${leaveProb}, fusionPower3Prob=${fusionPower3Prob}`);
   let neotrons = 1;
   const stepRecords: IStepRecord[] = [];
   const coefficients: number[] = [];
@@ -20,7 +18,7 @@ function simulateNeotrons(params:IParams): IResult {
 
       if (travelPropability < keepProb) {
         kept += 1;
-      } else if (travelPropability <keepProb + leaveProb) {
+      } else if (travelPropability < keepProb + leaveProb) {
         left += 1;
       } else {
         const fusionpower = Math.random() < fusionPower3Prob ? 3 : 2;
@@ -41,27 +39,19 @@ function simulateNeotrons(params:IParams): IResult {
       createdByFusion,
       fusions: fusionEvents,
       end: neotrons,
-      coef: C,  
+      coef: C,
     });
-
-    console.log(
-      `Step ${step}: start=${start}, kept=${kept}, left=${left}, ` +
-        `fusions=${fusionEvents.length} -> [${fusionEvents.join(", ")}], ` +
-        `createdByFusion=${createdByFusion}, C=${C.toFixed(2)}, end=${neotrons}`
-    );
 
     if (neotrons === 0) break;
   }
 
-  const avgC =
-    coefficients.length > 0
-      ? coefficients.reduce((a, b) => a + b, 0) / coefficients.length
-      : 0;
+  const avgC = coefficients.length > 0
+    ? coefficients.reduce((a, b) => a + b, 0) / coefficients.length
+    : 0;
 
-  const extinctionStep =
-    stepRecords.length > 0 && stepRecords[stepRecords.length - 1].end === 0
-      ? stepRecords.length
-      : null;
+  const extinctionStep = stepRecords.length > 0 && stepRecords[stepRecords.length - 1].end === 0
+    ? stepRecords.length
+    : null;
 
   const result: IResult = {
     meta: {
