@@ -171,7 +171,6 @@ export default function NeotronField() {
 
     (async () => {
       if (!wrapRef.current) {
-        console.warn("[NeotronField] wrapRef is null");
         return;
       }
 
@@ -182,8 +181,6 @@ export default function NeotronField() {
         backgroundAlpha: 0,
         antialias: true,
         resizeTo: wrapRef.current,
-        width: wrapRef.current.clientWidth,
-        height: wrapRef.current.clientHeight,
       });
       appRef.current = app;
       
@@ -397,18 +394,10 @@ export default function NeotronField() {
 
       draw(0, false);
 
-      const onResize = () => {
-        if (result?.steps?.length && drawRef.current) {
-          drawRef.current(currentStep, false);
-        }
-      };
-      app.renderer.on("resize", onResize);
-
       cleanup = () => {
         if (animationFrameRef.current) {
           cancelAnimationFrame(animationFrameRef.current);
         }
-        app.renderer.off("resize", onResize);
         app.destroy(true, { children: true, texture: true });
         appRef.current = null;
         drawRef.current = null;
@@ -424,7 +413,12 @@ export default function NeotronField() {
   useEffect(() => {
     if (!result?.steps?.length || !drawRef.current || !appRef.current) return;
 
-    drawRef.current(currentStep, isAnimating);
+    // Force timeline redraw with proper timing
+    setTimeout(() => {
+      if (drawRef.current) {
+        drawRef.current(currentStep, isAnimating);
+      }
+    }, 0);
 
     const w = appRef.current.renderer.width;
     const h = appRef.current.renderer.height;
@@ -443,7 +437,6 @@ export default function NeotronField() {
         setIsAnimating(true);
 
         const targetParticles = layoutNeutronsWithFusions(step, h, centerX);
-
         const newParticles: NeutronParticle[] = [];
         let keptIndex = 0;
 
@@ -456,7 +449,6 @@ export default function NeotronField() {
             particle.targetY = keptTargets[keptIndex].y;
             particle.isMoving = true;
             particle.color = 0x3b82f6;
-            
             particle.x = centerX - 120;
             
             newParticles.push(particle);
@@ -481,84 +473,122 @@ export default function NeotronField() {
         setIsAnimating(false);
         const targetParticles = layoutNeutronsWithFusions(step, h, centerX);
         particlesRef.current = targetParticles;
-        drawRef.current(currentStep, false);
+        setTimeout(() => {
+          if (drawRef.current) {
+            drawRef.current(currentStep, false);
+          }
+        }, 10);
         return;
       }
     }
   }, [currentStep, result, isPlaying]);
 
+  const buttonStyle = {
+    padding: "10px 20px",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "600",
+    transition: "all 0.2s ease",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+    minWidth: "80px",
+  };
+
+  const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!e.currentTarget.disabled) {
+      e.currentTarget.style.transform = "translateY(-1px)";
+      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
+    }
+  };
+
+  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
+  };
+
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
+    <div style={{ 
+      width: "100%", 
+      height: "100%", 
+      display: "flex", 
+      flexDirection: "column",
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }}>
       <div
         style={{
-          padding: "10px",
-          borderBottom: "1px solid #e5e7eb",
+          padding: "16px 20px",
+          background: "rgba(255, 255, 255, 0.95)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
           alignItems: "center",
-          gap: "10px",
+          gap: "12px",
           flexWrap: "wrap",
           flexShrink: 0,
+          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
         }}
       >
         <button
           onClick={isPlaying ? pauseAnimation : startAnimation}
           disabled={!result?.steps?.length}
           style={{
-            padding: "8px 16px",
+            ...buttonStyle,
             backgroundColor: isPlaying ? "#ef4444" : "#10b981",
             color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
             opacity: !result?.steps?.length ? 0.5 : 1,
           }}
+          onMouseEnter={handleButtonHover}
+          onMouseLeave={handleButtonLeave}
         >
-          {isPlaying ? "Pause" : "Play"}
+          {isPlaying ? "⏸ Pause" : "▶ Play"}
         </button>
 
         <button
           onClick={pauseAnimation}
           disabled={!result?.steps?.length || !isPlaying}
           style={{
-            padding: "8px 16px",
+            ...buttonStyle,
             backgroundColor: "#f59e0b",
             color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
             opacity: (!result?.steps?.length || !isPlaying) ? 0.5 : 1,
           }}
+          onMouseEnter={handleButtonHover}
+          onMouseLeave={handleButtonLeave}
         >
-          Stop
+          ⏹ Stop
         </button>
 
         <button
           onClick={resetAnimation}
           disabled={!result?.steps?.length}
           style={{
-            padding: "8px 16px",
+            ...buttonStyle,
             backgroundColor: "#6b7280",
             color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
+            opacity: !result?.steps?.length ? 0.5 : 1,
           }}
+          onMouseEnter={handleButtonHover}
+          onMouseLeave={handleButtonLeave}
         >
-          Reset
+          🔄 Reset
         </button>
+
+        <div style={{ width: "1px", height: "30px", backgroundColor: "rgba(0, 0, 0, 0.1)" }} />
 
         <button
           onClick={stepBackward}
           disabled={!result?.steps?.length || currentStep === 0 || isAnimating}
           style={{
-            padding: "8px 16px",
+            ...buttonStyle,
             backgroundColor: "#3b82f6",
             color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
             opacity: (!result?.steps?.length || currentStep === 0 || isAnimating) ? 0.5 : 1,
+            minWidth: "auto",
+            padding: "10px 16px",
           }}
+          onMouseEnter={handleButtonHover}
+          onMouseLeave={handleButtonLeave}
         >
           ← Step
         </button>
@@ -567,27 +597,34 @@ export default function NeotronField() {
           onClick={stepForward}
           disabled={!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating}
           style={{
-            padding: "8px 16px",
+            ...buttonStyle,
             backgroundColor: "#3b82f6",
             color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
             opacity: (!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating) ? 0.5 : 1,
+            minWidth: "auto",
+            padding: "10px 16px",
           }}
+          onMouseEnter={handleButtonHover}
+          onMouseLeave={handleButtonLeave}
         >
           Step →
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-          <label>Speed:</label>
+        <div style={{ width: "1px", height: "30px", backgroundColor: "rgba(0, 0, 0, 0.1)" }} />
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Speed:</label>
           <select
             value={animationSpeed}
             onChange={(e) => setAnimationSpeed(Number(e.target.value))}
             style={{
-              padding: "4px 8px",
-              border: "1px solid #d1d5db",
-              borderRadius: "4px",
+              padding: "8px 12px",
+              border: "2px solid #e5e7eb",
+              borderRadius: "8px",
+              fontSize: "14px",
+              backgroundColor: "white",
+              cursor: "pointer",
+              minWidth: "120px",
             }}
           >
             <option value={3000}>Slow (3s)</option>
@@ -601,16 +638,35 @@ export default function NeotronField() {
           <div
             style={{
               marginLeft: "auto",
-              fontSize: "14px",
-              color: "#6b7280",
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "12px",
+              padding: "8px 16px",
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              borderRadius: "8px",
+              border: "1px solid rgba(0, 0, 0, 0.1)",
             }}
           >
-            <span>Step {currentStep} / {result.steps.length}</span>
+            <span style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
+              Step {currentStep} / {result.steps.length}
+            </span>
             {isPlaying && (
-              <span style={{ color: "#10b981", fontSize: "12px" }}>● Playing</span>
+              <span style={{ 
+                color: "#10b981", 
+                fontSize: "12px", 
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px"
+              }}>
+                <span style={{ 
+                  width: "8px", 
+                  height: "8px", 
+                  borderRadius: "50%", 
+                  backgroundColor: "#10b981"
+                }} />
+                Playing
+              </span>
             )}
           </div>
         )}
@@ -621,53 +677,60 @@ export default function NeotronField() {
         style={{
           width: "100%",
           flex: 1,
-          background: "rgba(0,0,0,0.02)",
+          background: "rgba(255, 255, 255, 0.1)",
           position: "relative",
           overflow: "hidden",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       />
 
       <div
         style={{
-          padding: "10px",
-          borderTop: "1px solid #e5e7eb",
+          padding: "16px 20px",
+          background: "rgba(255, 255, 255, 0.95)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
-          gap: "20px",
-          fontSize: "12px",
+          gap: "24px",
+          fontSize: "13px",
           flexShrink: 0,
+          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
             style={{
-              width: "12px",
-              height: "12px",
+              width: "14px",
+              height: "14px",
               borderRadius: "50%",
               backgroundColor: "#3b82f6",
+              boxShadow: "0 2px 4px rgba(59, 130, 246, 0.3)",
             }}
-          ></div>
-          <span>Kept Neutrons</span>
+          />
+          <span style={{ fontWeight: "500", color: "#374151" }}>Kept Neutrons</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
             style={{
-              width: "12px",
-              height: "12px",
+              width: "14px",
+              height: "14px",
               borderRadius: "50%",
               backgroundColor: "#10b981",
+              boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)",
             }}
-          ></div>
-          <span>Created by Fusion</span>
+          />
+          <span style={{ fontWeight: "500", color: "#374151" }}>Created by Fusion</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
             style={{
-              width: "20px",
-              height: "3px",
+              width: "24px",
+              height: "4px",
               backgroundColor: "#f59e0b",
+              borderRadius: "2px",
+              boxShadow: "0 2px 4px rgba(245, 158, 11, 0.3)",
             }}
-          ></div>
-          <span>Fusion Events</span>
+          />
+          <span style={{ fontWeight: "500", color: "#374151" }}>Fusion Events</span>
         </div>
       </div>
     </div>
