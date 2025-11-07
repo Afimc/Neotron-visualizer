@@ -1,0 +1,135 @@
+.result-display {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.result-display__no-data {
+  padding: 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.result-display__card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.result-display__card-title {
+  color: white;
+  margin: 0 0 16px 0;
+}
+
+.result-display__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.result-display__stat-label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.result-display__stat-value {
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.result-display__extinction {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.result-display__extinction-text {
+  color: #fca5a5;
+}
+
+.result-display__params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.result-display__param-value {
+  color: white;
+  font-weight: 600;
+}
+
+.result-display__steps-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.result-display__step {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-display__step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.result-display__step-title {
+  color: white;
+}
+
+.result-display__step-coef {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.result-display__step-details {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  font-size: 14px;
+}
+
+.result-display__step-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.result-display__step-value {
+  color: white;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.result-display__step-value--kept {
+  color: #60a5fa;
+}
+
+.result-display__step-value--left {
+  color: #fbbf24;
+}
+
+.result-display__step-value--fused {
+  color: #34d399;
+}
+
+.result-display__fusions {
+  margin-top: 8px;
+}
+
+.result-display__fusions-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.result-display__metadata {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}

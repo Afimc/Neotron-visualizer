@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Application, Graphics, Container, Text } from "pixi.js";
 import { simStore } from "../../core/store/simStore";
+import './NeotronSimulator.css';
 
 interface NeutronParticle {
   id: string;
@@ -508,38 +509,12 @@ export default function NeotronField() {
   };
 
   return (
-    <div style={{ 
-      width: "100%", 
-      height: "100%", 
-      display: "flex", 
-      flexDirection: "column",
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    }}>
-      <div
-        style={{
-          padding: "16px 20px",
-          background: "rgba(255, 255, 255, 0.95)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          flexWrap: "wrap",
-          flexShrink: 0,
-          boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
-        }}
-      >
+    <div className="neotron-simulator">
+      <div className="neotron-simulator__controls">
         <button
           onClick={isPlaying ? pauseAnimation : startAnimation}
           disabled={!result?.steps?.length}
-          style={{
-            ...buttonStyle,
-            backgroundColor: isPlaying ? "#ef4444" : "#10b981",
-            color: "white",
-            opacity: !result?.steps?.length ? 0.5 : 1,
-          }}
-          onMouseEnter={handleButtonHover}
-          onMouseLeave={handleButtonLeave}
+          className={`neotron-simulator__button ${isPlaying ? 'neotron-simulator__button--pause' : 'neotron-simulator__button--play'}`}
         >
           {isPlaying ? "⏸ Pause" : "▶ Play"}
         </button>
@@ -547,14 +522,7 @@ export default function NeotronField() {
         <button
           onClick={pauseAnimation}
           disabled={!result?.steps?.length || !isPlaying}
-          style={{
-            ...buttonStyle,
-            backgroundColor: "#f59e0b",
-            color: "white",
-            opacity: (!result?.steps?.length || !isPlaying) ? 0.5 : 1,
-          }}
-          onMouseEnter={handleButtonHover}
-          onMouseLeave={handleButtonLeave}
+          className="neotron-simulator__button neotron-simulator__button--stop"
         >
           ⏹ Stop
         </button>
@@ -562,33 +530,17 @@ export default function NeotronField() {
         <button
           onClick={resetAnimation}
           disabled={!result?.steps?.length}
-          style={{
-            ...buttonStyle,
-            backgroundColor: "#6b7280",
-            color: "white",
-            opacity: !result?.steps?.length ? 0.5 : 1,
-          }}
-          onMouseEnter={handleButtonHover}
-          onMouseLeave={handleButtonLeave}
+          className="neotron-simulator__button neotron-simulator__button--reset"
         >
           🔄 Reset
         </button>
 
-        <div style={{ width: "1px", height: "30px", backgroundColor: "rgba(0, 0, 0, 0.1)" }} />
+        <div className="neotron-simulator__divider" />
 
         <button
           onClick={stepBackward}
           disabled={!result?.steps?.length || currentStep === 0 || isAnimating}
-          style={{
-            ...buttonStyle,
-            backgroundColor: "#3b82f6",
-            color: "white",
-            opacity: (!result?.steps?.length || currentStep === 0 || isAnimating) ? 0.5 : 1,
-            minWidth: "auto",
-            padding: "10px 16px",
-          }}
-          onMouseEnter={handleButtonHover}
-          onMouseLeave={handleButtonLeave}
+          className="neotron-simulator__button neotron-simulator__button--step"
         >
           ← Step
         </button>
@@ -596,36 +548,19 @@ export default function NeotronField() {
         <button
           onClick={stepForward}
           disabled={!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating}
-          style={{
-            ...buttonStyle,
-            backgroundColor: "#3b82f6",
-            color: "white",
-            opacity: (!result?.steps?.length || currentStep >= result?.steps?.length || isAnimating) ? 0.5 : 1,
-            minWidth: "auto",
-            padding: "10px 16px",
-          }}
-          onMouseEnter={handleButtonHover}
-          onMouseLeave={handleButtonLeave}
+          className="neotron-simulator__button neotron-simulator__button--step"
         >
           Step →
         </button>
 
-        <div style={{ width: "1px", height: "30px", backgroundColor: "rgba(0, 0, 0, 0.1)" }} />
+        <div className="neotron-simulator__divider" />
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Speed:</label>
+        <div className="neotron-simulator__speed-control">
+          <label className="neotron-simulator__speed-label">Speed:</label>
           <select
             value={animationSpeed}
             onChange={(e) => setAnimationSpeed(Number(e.target.value))}
-            style={{
-              padding: "8px 12px",
-              border: "2px solid #e5e7eb",
-              borderRadius: "8px",
-              fontSize: "14px",
-              backgroundColor: "white",
-              cursor: "pointer",
-              minWidth: "120px",
-            }}
+            className="neotron-simulator__speed-select"
           >
             <option value={3000}>Slow (3s)</option>
             <option value={2000}>Normal (2s)</option>
@@ -635,36 +570,13 @@ export default function NeotronField() {
         </div>
 
         {result?.steps?.length && (
-          <div
-            style={{
-              marginLeft: "auto",
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "8px 16px",
-              backgroundColor: "rgba(255, 255, 255, 0.8)",
-              borderRadius: "8px",
-              border: "1px solid rgba(0, 0, 0, 0.1)",
-            }}
-          >
-            <span style={{ fontSize: "14px", fontWeight: "600", color: "#374151" }}>
+          <div className="neotron-simulator__status">
+            <span className="neotron-simulator__status-text">
               Step {currentStep} / {result.steps.length}
             </span>
             {isPlaying && (
-              <span style={{ 
-                color: "#10b981", 
-                fontSize: "12px", 
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px"
-              }}>
-                <span style={{ 
-                  width: "8px", 
-                  height: "8px", 
-                  borderRadius: "50%", 
-                  backgroundColor: "#10b981"
-                }} />
+              <span className="neotron-simulator__playing-indicator">
+                <span className="neotron-simulator__playing-dot" />
                 Playing
               </span>
             )}
@@ -672,65 +584,20 @@ export default function NeotronField() {
         )}
       </div>
 
-      <div
-        ref={wrapRef}
-        style={{
-          width: "100%",
-          flex: 1,
-          background: "rgba(255, 255, 255, 0.1)",
-          position: "relative",
-          overflow: "hidden",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-        }}
-      />
+      <div ref={wrapRef} className="neotron-simulator__canvas" />
 
-      <div
-        style={{
-          padding: "16px 20px",
-          background: "rgba(255, 255, 255, 0.95)",
-          borderTop: "1px solid rgba(255, 255, 255, 0.2)",
-          display: "flex",
-          gap: "24px",
-          fontSize: "13px",
-          flexShrink: 0,
-          boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "14px",
-              height: "14px",
-              borderRadius: "50%",
-              backgroundColor: "#3b82f6",
-              boxShadow: "0 2px 4px rgba(59, 130, 246, 0.3)",
-            }}
-          />
-          <span style={{ fontWeight: "500", color: "#374151" }}>Kept Neutrons</span>
+      <div className="neotron-simulator__legend">
+        <div className="neotron-simulator__legend-item">
+          <div className="neotron-simulator__legend-dot neotron-simulator__legend-dot--kept" />
+          <span className="neotron-simulator__legend-text">Kept Neutrons</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "14px",
-              height: "14px",
-              borderRadius: "50%",
-              backgroundColor: "#10b981",
-              boxShadow: "0 2px 4px rgba(16, 185, 129, 0.3)",
-            }}
-          />
-          <span style={{ fontWeight: "500", color: "#374151" }}>Created by Fusion</span>
+        <div className="neotron-simulator__legend-item">
+          <div className="neotron-simulator__legend-dot neotron-simulator__legend-dot--fusion" />
+          <span className="neotron-simulator__legend-text">Created by Fusion</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              width: "24px",
-              height: "4px",
-              backgroundColor: "#f59e0b",
-              borderRadius: "2px",
-              boxShadow: "0 2px 4px rgba(245, 158, 11, 0.3)",
-            }}
-          />
-          <span style={{ fontWeight: "500", color: "#374151" }}>Fusion Events</span>
+        <div className="neotron-simulator__legend-item">
+          <div className="neotron-simulator__legend-bar" />
+          <span className="neotron-simulator__legend-text">Fusion Events</span>
         </div>
       </div>
     </div>
