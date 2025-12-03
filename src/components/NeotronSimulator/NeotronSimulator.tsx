@@ -318,7 +318,7 @@ export default function NeotronField() {
         if (stepIndex > 0 && animating) {
           const step = result.steps[stepIndex - 1];
           
-          step.fusions.forEach((fusionPower: number, fusionIndex: number) => {
+          step.fusions.forEach((fusionIndex: number) => {
             const fusionParticles = particlesRef.current.filter(p => 
               p.fusionPartner === `fusion-${fusionIndex}`
             );
@@ -484,29 +484,29 @@ export default function NeotronField() {
     }
   }, [currentStep, result, isPlaying]);
 
-  const buttonStyle = {
-    padding: "10px 20px",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: "600",
-    transition: "all 0.2s ease",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-    minWidth: "80px",
-  };
+  // const buttonStyle = {
+  //   padding: "10px 20px",
+  //   border: "none",
+  //   borderRadius: "8px",
+  //   cursor: "pointer",
+  //   fontSize: "14px",
+  //   fontWeight: "600",
+  //   transition: "all 0.2s ease",
+  //   boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+  //   minWidth: "80px",
+  // };
 
-  const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!e.currentTarget.disabled) {
-      e.currentTarget.style.transform = "translateY(-1px)";
-      e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
-    }
-  };
+  // const handleButtonHover = (e: React.MouseEvent<HTMLButtonElement>) => {
+  //   if (!e.currentTarget.disabled) {
+  //     e.currentTarget.style.transform = "translateY(-1px)";
+  //     e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.2)";
+  //   }
+  // };
 
-  const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.currentTarget.style.transform = "translateY(0)";
-    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
-  };
+  // const handleButtonLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+  //   e.currentTarget.style.transform = "translateY(0)";
+  //   e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
+  // };
 
   return (
     <div className="neotron-simulator">
